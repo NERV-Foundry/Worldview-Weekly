@@ -18,7 +18,7 @@ EPISODES = ROOT / "audio" / "episodes"
 PODCAST = ROOT / "podcast.xml"
 VOICE = os.environ.get("KOKORO_VOICE", "af_heart")
 SPEED = float(os.environ.get("KOKORO_SPEED", "1.0"))
-BASE = "https://raw.githubusercontent.com/Launch4339/Worldview-Weekly/main"
+BASE = "https://raw.githubusercontent.com/NERV-Foundry/Worldview-Weekly/main"
 
 
 def parse_script(text: str):
@@ -36,17 +36,23 @@ def parse_script(text: str):
 
 def synthesize(text: str, wav_path: Path):
     pipeline = KPipeline(lang_code="a")
-    chunks = []
     silence = np.zeros(int(24000 * 0.35), dtype=np.float32)
-    for _gs, _ps, audio in pipeline(text, voice=VOICE, speed=SPEED, split_pattern=r"\n+"):
-        if audio is None:
-            continue
-        chunks.append(np.asarray(audio, dtype=np.float32))
-        chunks.append(silence)
-    if not chunks:
+    wrote = False
+    # Stream each chunk to disk as Kokoro yields it. The previous version held
+    # every chunk in a list and then concatenated a second full-length copy,
+    # so peak memory was ~2x the episode's float32 size (~0.5 GB for 45 min).
+    with sf.SoundFile(wav_path, mode="w", samplerate=24000, channels=1,
+                      subtype="PCM_16") as out:
+        for _gs, _ps, audio in pipeline(text, voice=VOICE, speed=SPEED,
+                                        split_pattern=r"\n+"):
+            if audio is None:
+                continue
+            out.write(np.asarray(audio, dtype=np.float32))
+            out.write(silence)
+            wrote = True
+    if not wrote:
+        wav_path.unlink(missing_ok=True)
         raise SystemExit("Kokoro produced no audio")
-    merged = np.concatenate(chunks)
-    sf.write(wav_path, merged, 24000, subtype="PCM_16")
 
 
 def make_mp3(wav_path: Path, mp3_path: Path):
@@ -73,10 +79,11 @@ def build_feed(current_date: str, current_title: str, description: str):
             pub = now
         title = current_title if date == current_date else f"Worldview Weekly — {date}"
         desc = description if date == current_date else "A previous Worldview Weekly audio edition."
-        url = f"{BASE}/audio/episodes/{f.name}?v={f.stat().st_size}"
-        items.append(f"""    <item>\n      <title>{escape(title)}</title>\n      <description>{escape(desc)}</description>\n      <pubDate>{pub}</pubDate>\n      <guid isPermaLink=\"false\">worldview-weekly-{date}-{f.stat().st_size}</guid>\n      <enclosure url=\"{escape(url)}\" length=\"{f.stat().st_size}\" type=\"audio/mpeg\" />\n    </item>""")
+        size = f.stat().st_size
+        url = f"{BASE}/audio/episodes/{f.name}?v={size}"
+        items.append(f"""    <item>\n      <title>{escape(title)}</title>\n      <description>{escape(desc)}</description>\n      <pubDate>{pub}</pubDate>\n      <guid isPermaLink=\"false\">worldview-weekly-{date}-{size}</guid>\n      <enclosure url=\"{escape(url)}\" length=\"{size}\" type=\"audio/mpeg\" />\n    </item>""")
 
-    xml = f"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:itunes=\"http://www.itunes.com/dtds/podcast-1.0.dtd\">\n  <channel>\n    <title>Worldview Weekly Audio</title>\n    <link>https://github.com/Launch4339/Worldview-Weekly</link>\n    <description>A low-noise weekly global counterweight to The Economist, synthesized for listening.</description>\n    <language>en-us</language>\n    <itunes:author>Worldview Weekly</itunes:author>\n    <itunes:explicit>false</itunes:explicit>\n    <lastBuildDate>{now}</lastBuildDate>\n{chr(10).join(items)}\n  </channel>\n</rss>\n"""
+    xml = f"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:itunes=\"http://www.itunes.com/dtds/podcast-1.0.dtd\">\n  <channel>\n    <title>Worldview Weekly Audio</title>\n    <link>https://github.com/NERV-Foundry/Worldview-Weekly</link>\n    <description>A low-noise weekly global counterweight to The Economist, synthesized for listening.</description>\n    <language>en-us</language>\n    <itunes:author>Worldview Weekly</itunes:author>\n    <itunes:explicit>false</itunes:explicit>\n    <lastBuildDate>{now}</lastBuildDate>\n{chr(10).join(items)}\n  </channel>\n</rss>\n"""
     PODCAST.write_text(xml, encoding="utf-8")
 
 
