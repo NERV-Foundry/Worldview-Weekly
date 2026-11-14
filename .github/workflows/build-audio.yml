@@ -1,12 +1,9 @@
 name: Build Worldview Weekly Audio
 
+# Podcast production suspended by owner on 2026-11-14.
+# The written worldview-weekly.xml RSS feed continues unchanged.
+# Retained for historical configuration and reversible reactivation only.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'audio/current.txt'
-      - 'scripts/build_audio.py'
-      - '.github/workflows/build-audio.yml'
   workflow_dispatch:
 
 permissions:
@@ -21,6 +18,8 @@ concurrency:
 
 jobs:
   build-audio:
+    # Even a manual dispatch must not generate audio until explicitly re-enabled.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
