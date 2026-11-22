@@ -1,6 +1,11 @@
 name: NERV CI budget policy
 on:
   pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/nerv-ci-budget.json'
+      - 'tools/nerv_ci_budget_v2.py'
+      - 'docs/nerv-ci-budget.md'
 permissions:
   contents: read
 concurrency:
