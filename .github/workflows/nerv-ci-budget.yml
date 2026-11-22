@@ -1,0 +1,21 @@
+name: NERV CI budget policy
+on:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  policy:
+    name: NERV CI budget policy
+    runs-on: ubuntu-slim
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Enforce sealed workflow inventory and review boundaries
+        run: |
+          python3 tools/nerv_ci_budget_v2.py --self-test
+          python3 tools/nerv_ci_budget_v2.py

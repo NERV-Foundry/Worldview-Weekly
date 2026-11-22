@@ -1,0 +1,12 @@
+{
+  "schema": "NERV_CI_BUDGET_V2",
+  "owner": "NERV",
+  "max_workflows": 1,
+  "workflows": {
+    ".github/workflows/build-audio.yml": {
+      "git_blob_sha": "035ce5c4bd714d7f90da564992f744cdc99f2a1c",
+      "role": "dormant",
+      "reason": "Owner-suspended audio publication retained byte-for-byte without reactivation"
+    }
+  }
+}

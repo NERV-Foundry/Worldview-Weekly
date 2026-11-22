@@ -1,0 +1,3 @@
+NERV-owned policy: https://docs.google.com/document/d/1O3Jn1xm-0Uf0lbO760hZDzTeIMdYe5UW_BCZZDk6wK8/edit
+
+Version 2 offline sealed workflow inventory. The original audio publisher is dormant and unchanged. PR-only ubuntu-slim check verifies fingerprints, workflow count, and unmodified policy guard. No dispatch, provider changes or audio production. Future workflow modifications require manifest update, original-owner review and qualified tests. GitHub main branch ruleset must separately require the exact `NERV CI budget policy` check; a source PR cannot impose provider-level protection.
