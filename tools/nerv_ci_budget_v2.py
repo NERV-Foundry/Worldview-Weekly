@@ -11,6 +11,27 @@ GUARD = ".github/workflows/nerv-ci-budget.yml"
 MANIFEST = ".github/nerv-ci-budget.json"
 
 
+# An optional guard must run when its own policy and workflow inputs change,
+# not on unrelated application PRs. Never make this path-filtered job required.
+EXPECTED_SCOPE = (
+    "on:\n"
+    "  pull_request:\n"
+    "    paths:\n"
+    "      - '.github/workflows/**'\n"
+    "      - '.github/nerv-ci-budget.json'\n"
+    "      - 'tools/nerv_ci_budget_v2.py'\n"
+    "      - 'docs/nerv-ci-budget.md'\n"
+)
+
+def policy_event_scope_exact(text):
+    prefix = "name: NERV CI budget policy\n"
+    return (
+        text.startswith(prefix + EXPECTED_SCOPE + "permissions:\n")
+        and len(re.findall(r"(?m)^on:\s*$", text)) == 1
+        and "paths-ignore:" not in text
+    )
+
+
 def git_blob_sha(data):
     return hashlib.sha1(b"blob " + str(len(data)).encode() + b"\x00" + data).hexdigest()
 
@@ -49,9 +70,8 @@ def validate(root):
                 errors.append("policy workflow token missing: " + repr(token))
         if "cancel-in-progress: " + chr(36) + "{{ github.event_name == 'pull_request' }}" not in text:
             errors.append("unsafe cancellation")
-        if re.search(r"(?m)^    (?:paths|paths-ignore|if):", text) or re.search(
-                r"(?m)^  (?:push|schedule|workflow_dispatch):", text):
-            errors.append("policy must run on every PR only")
+        if not policy_event_scope_exact(text):
+            errors.append("policy event scope differs from approved CI-only paths")
         if len(re.findall(r"(?m)^  [a-zA-Z][\w-]*:\s*$", text.split("\njobs:", 1)[-1])) != 1:
             errors.append("policy must use exactly one runner job")
     for path, item in entries.items():
@@ -81,6 +101,17 @@ def main():
     if "--self-test" in sys.argv:
         assert git_blob_sha(b"") == "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
         assert git_blob_sha(b"hello\n") == "ce013625030ba8dba906f756967f9e9ca394464a"
+        valid = "name: NERV CI budget policy\n" + EXPECTED_SCOPE + "permissions:\n"
+        assert policy_event_scope_exact(valid)
+        for omitted in (
+            ".github/workflows/**", ".github/nerv-ci-budget.json",
+            "tools/nerv_ci_budget_v2.py", "docs/nerv-ci-budget.md",
+        ):
+            assert not policy_event_scope_exact(valid.replace("      - '" + omitted + "'\n", "", 1))
+        assert not policy_event_scope_exact(valid.replace("    paths:\n", "    paths-ignore:\n"))
+        assert not policy_event_scope_exact(valid.replace("  pull_request:\n", "  push:\n"))
+        assert not policy_event_scope_exact(valid.replace("permissions:\n", "  workflow_dispatch:\npermissions:\n"))
+        assert not policy_event_scope_exact(valid + "on:\n")
         print("NERV_CI_BUDGET_SELF_TEST=PASS")
         return 0
     errors = validate(ROOT)
