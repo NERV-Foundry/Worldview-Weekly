@@ -40,7 +40,17 @@ def git_blob_sha(data):
 # Exact candidate guard seal. Native assignment is deliberately NOT admitted yet.
 GUARD_BLOB = "26c86e8de1056177af619c29abab0ba3f777c66e"
 ROUTE = ["self-hosted", "Linux", "ARM64", "nerv-ci-trial"]
-RUNNER_ADMISSIONS = {}
+# R24 operator eligibility is source-only; native feeder deployment/readback,
+# queue/setup/timeout/drain and independent review remain external gates.
+RUNNER_ADMISSIONS = {
+    (GUARD, "policy"): {
+        "runner": ROUTE,
+        "workflow_blob": GUARD_BLOB,
+        "not_before": "2026-11-26T22:51:12Z",
+        "expires": "2026-11-29T17:00:00Z",
+        "evidence": "https://github.com/NERV-Foundry/stargate/issues/97#issuecomment-7205041141; Worldview-Weekly policy eligibility, not live feeder admission",
+    },
+}
 
 def admitted_self_hosted(path, job_id, runner, limit, workflow_blob, admissions, now):
     """Exact source admission only; native identity/isolation and queue exit are external gates."""
