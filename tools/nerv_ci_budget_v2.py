@@ -40,7 +40,15 @@ def git_blob_sha(data):
 # Exact candidate guard seal. Native assignment is deliberately NOT admitted yet.
 GUARD_BLOB = "26c86e8de1056177af619c29abab0ba3f777c66e"
 ROUTE = ["self-hosted", "Linux", "ARM64", "nerv-ci-trial"]
-RUNNER_ADMISSIONS = {}
+RUNNER_ADMISSIONS = {
+    (GUARD, "policy"): {
+        "runner": ROUTE,
+        "workflow_blob": GUARD_BLOB,
+        "not_before": "2026-11-26T22:44:00Z",
+        "expires": "2026-11-29T17:00:00Z",
+        "evidence": "https://github.com/NERV-Foundry/stargate/issues/97#issuecomment-7205041141; R24 exact read-only policy eligibility; finite trial only",
+    },
+}
 
 def admitted_self_hosted(path, job_id, runner, limit, workflow_blob, admissions, now):
     """Exact source admission only; native identity/isolation and queue exit are external gates."""
@@ -173,12 +181,14 @@ def main():
         assert not policy_event_scope_exact(valid.replace("  pull_request:\n", "  push:\n"))
         assert not policy_event_scope_exact(valid.replace("permissions:\n", "  workflow_dispatch:\npermissions:\n"))
         assert not policy_event_scope_exact(valid + "on:\n")
-        live = datetime(2026, 11, 26, 20, 0, tzinfo=timezone.utc)
+        live = datetime(2026, 11, 26, 23, 0, tzinfo=timezone.utc)
         expiry = datetime(2026, 11, 29, 17, 0, tzinfo=timezone.utc)
         fixture = {(GUARD, "policy"): {"runner": ROUTE, "workflow_blob": GUARD_BLOB,
                     "not_before": "2026-11-26T19:43:00Z", "expires": "2026-11-29T17:00:00Z",
                     "evidence": "synthetic fixture only"}}
         assert admitted_self_hosted(GUARD, "policy", ROUTE, "3", GUARD_BLOB, fixture, live)
+        assert admitted_self_hosted(GUARD, "policy", ROUTE, "3", GUARD_BLOB, RUNNER_ADMISSIONS, live)
+        assert not admitted_self_hosted(GUARD, "other", ROUTE, "3", GUARD_BLOB, RUNNER_ADMISSIONS, live)
         assert not admitted_self_hosted(GUARD, "policy", ROUTE, "3", GUARD_BLOB, {}, live)
         assert not admitted_self_hosted(GUARD, "policy", ROUTE, "3", GUARD_BLOB, fixture, expiry)
         assert not admitted_self_hosted(GUARD, "policy", ROUTE, "3", GUARD_BLOB, fixture, expiry-timedelta(minutes=1))
